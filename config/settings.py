@@ -11,8 +11,8 @@ MAX_ARTICLES_PER_CATEGORY = 8   # fetched from RSS
 SUMMARIZE_TOP_N = 5             # sent to LLM per category
 
 # ── Telegram ────────────────────────────────────────────────
-TELEGRAM_BOT_TOKEN = "8698470334:AAHlDuVeI3d_iNO6BawsySgeQGDyPKKa7v8"         # fill after creating bot
-TELEGRAM_CHAT_ID   = "5322306492"         # fill after /start in bot
+TELEGRAM_BOT_TOKEN = ""         # fill after creating bot
+TELEGRAM_CHAT_ID   = ""         # fill after /start in bot
 
 # ── Email (Gmail SMTP) ───────────────────────────────────────
 EMAIL_SENDER   = ""             # your gmail
