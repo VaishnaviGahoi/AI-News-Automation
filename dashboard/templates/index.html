@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — AI News Automation{% endblock %}
+
+{% block head %}
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .stat-card.blue::before  { background: var(--accent); }
+  .stat-card.green::before { background: var(--green);  }
+  .stat-card.red::before   { background: var(--red);    }
+  .stat-card.purple::before{ background: var(--accent2);}
+  .stat-num {
+    font-family: var(--font-h); font-weight: 800; font-size: 36px;
+    line-height: 1; margin-bottom: 4px;
+  }
+  .stat-label { color: var(--muted); font-size: 13px; font-weight: 500; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+  .cat-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .cat-row:last-child { border-bottom: none; }
+  .cat-name { display: flex; align-items: center; gap: 8px; }
+  .cat-bar-wrap { flex: 1; margin: 0 16px; height: 4px; background: var(--border); border-radius: 2px; }
+  .cat-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.8s ease; }
+  .cat-count { color: var(--muted); font-size: 12px; min-width: 28px; text-align: right; }
+
+  .trend-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 14px; font-size: 13px;
+    font-weight: 500; margin: 4px;
+  }
+  .trend-count { color: var(--accent); font-weight: 700; font-size: 12px; }
+
+  .sentiment-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: 12px 0 6px; }
+  .s-pos { background: var(--green); }
+  .s-neg { background: var(--red);   }
+  .s-neu { background: var(--muted); }
+  .s-legend { display: flex; gap: 16px; font-size: 12px; }
+  .s-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+  .hero {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 32px;
+    margin-bottom: 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    background-image: radial-gradient(ellipse 60% 80% at 90% 50%, rgba(56,189,248,0.06) 0%, transparent 60%);
+  }
+  .hero h1 {
+    font-family: var(--font-h); font-weight: 800; font-size: 30px;
+    letter-spacing: -1px; line-height: 1.2;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 15px; margin-top: 8px; max-width: 480px; }
+  .hero-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .hero-badge {
+    font-family: var(--font-h); font-size: 12px; font-weight: 700;
+    background: rgba(56,189,248,0.1); color: var(--accent);
+    border: 1px solid rgba(56,189,248,0.2);
+    padding: 4px 10px; border-radius: 20px;
+    display: inline-block; margin-bottom: 10px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div>
+      <div class="hero-badge">🤖 Powered by Ollama llama3 · Local AI</div>
+      <h1>Your Personal<br><span>News Intelligence</span> Hub</h1>
+      <p>Automated multi-category news fetching, AI summarization, sentiment analysis & smart delivery — all running locally.</p>
+      <div class="hero-actions">
+        <a href="/news" class="btn btn-primary">Browse News →</a>
+        <a href="/preferences" class="btn btn-ghost">⚙ Preferences</a>
+      </div>
+    </div>
+    <div style="font-size:80px;opacity:0.15;font-family:var(--font-h);font-weight:800;
+                letter-spacing:-4px;line-height:1;">NEWS</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card blue">
+      <div class="stat-num" style="color:var(--accent)">{{ total }}</div>
+      <div class="stat-label">Total Articles</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-num" style="color:var(--green)">{{ sentiment_counts.Positive }}</div>
+      <div class="stat-label">Positive News</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-num" style="color:var(--red)">{{ sentiment_counts.Negative }}</div>
+      <div class="stat-label">Negative News</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-num" style="color:var(--accent2)">{{ counts.keys()|list|length }}</div>
+      <div class="stat-label">Active Categories</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+
+    <!-- Category breakdown -->
+    <div class="card">
+      <div class="section-title">📂 Articles by <span>Category</span></div>
+      {% set max_count = (counts.values()|max) if (counts and counts.values()|max > 0) else 1 %}
+      {% for cat, count in counts.items() %}
+      <div class="cat-row">
+        <div class="cat-name" style="min-width:160px;font-size:13px;font-weight:500;">{{ cat }}</div>
+        <div class="cat-bar-wrap">
+          <div class="cat-bar" style="width:{{ (count / max_count * 100)|int }}%"></div>
+        </div>
+        <div class="cat-count">{{ count }}</div>
+      </div>
+      {% else %}
+      <p style="color:var(--muted);font-size:14px;padding:20px 0;">No articles yet. Click ▶ Run Now to fetch.</p>
+      {% endfor %}
+    </div>
+
+    <div>
+      <!-- Sentiment -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="section-title">💬 Sentiment <span>Overview</span></div>
+        {% set total_sent = sentiment_counts.Positive + sentiment_counts.Negative + sentiment_counts.Neutral %}
+        {% if total_sent > 0 %}
+        <div class="sentiment-bar">
+          <div class="s-pos" style="width:{{ (sentiment_counts.Positive/total_sent*100)|int }}%"></div>
+          <div class="s-neg" style="width:{{ (sentiment_counts.Negative/total_sent*100)|int }}%"></div>
+          <div class="s-neu" style="width:{{ (sentiment_counts.Neutral/total_sent*100)|int }}%"></div>
+        </div>
+        <div class="s-legend">
+          <span><span class="s-dot" style="background:var(--green)"></span>Positive ({{ sentiment_counts.Positive }})</span>
+          <span><span class="s-dot" style="background:var(--red)"></span>Negative ({{ sentiment_counts.Negative }})</span>
+          <span><span class="s-dot" style="background:var(--muted)"></span>Neutral ({{ sentiment_counts.Neutral }})</span>
+        </div>
+        {% else %}
+        <p style="color:var(--muted);font-size:14px;">Run the pipeline to see sentiment data.</p>
+        {% endif %}
+      </div>
+
+      <!-- Trending -->
+      <div class="card">
+        <div class="section-title">🔥 Trending <span>This Week</span></div>
+        {% for t in trending %}
+        <span class="trend-chip">
+          {{ t.category }}
+          <span class="trend-count">{{ t.count }}</span>
+        </span>
+        {% else %}
+        <p style="color:var(--muted);font-size:14px;">No trend data yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Quick API info -->
+  <hr>
+  <div class="section-title">🔌 REST <span>API Endpoints</span></div>
+  <div class="three-col">
+    {% for endpoint, desc in [
+      ('/api/news', 'Get articles — filter by category, sentiment, min_score'),
+      ('/api/stats', 'Overall stats — counts by category & sentiment'),
+      ('/api/trending', 'Trending categories — last 7 days')
+    ] %}
+    <div class="card" style="padding:14px 16px;">
+      <code style="color:var(--accent);font-size:13px;">GET {{ endpoint }}</code>
+      <p style="color:var(--muted);font-size:12px;margin-top:6px;">{{ desc }}</p>
+      <a href="{{ endpoint }}" target="_blank" class="btn btn-ghost" style="margin-top:10px;font-size:12px;padding:5px 12px;">Try it →</a>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

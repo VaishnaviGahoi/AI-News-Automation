@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Preferences — AI News Automation{% endblock %}
+
+{% block head %}
+<style>
+  .pref-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .toggle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .toggle-item {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toggle-item input[type=checkbox] { display: none; }
+  .toggle-item.checked {
+    border-color: var(--accent);
+    background: rgba(56,189,248,0.07);
+  }
+  .toggle-item .check-icon {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    font-size: 12px;
+  }
+  .toggle-item.checked .check-icon {
+    background: var(--accent); border-color: var(--accent); color: #000;
+  }
+  .toggle-label { font-size: 13px; font-weight: 500; }
+
+  .delivery-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .delivery-toggle:last-child { border-bottom: none; }
+  .delivery-info { font-size: 14px; font-weight: 500; }
+  .delivery-info small { color: var(--muted); font-size: 12px; display: block; margin-top: 2px; }
+
+  /* Toggle switch */
+  .switch { position: relative; width: 44px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border); border-radius: 24px;
+    transition: 0.3s;
+  }
+  .slider::before {
+    content: ''; position: absolute;
+    width: 16px; height: 16px; left: 4px; bottom: 4px;
+    background: var(--muted); border-radius: 50%; transition: 0.3s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(20px); background: #000; }
+
+  .threshold-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+  .threshold-val {
+    font-family: var(--font-h); font-weight: 800; font-size: 32px;
+    color: var(--yellow); min-width: 40px;
+  }
+  input[type=range] {
+    flex: 1; height: 6px; padding: 0;
+    -webkit-appearance: none;
+    background: var(--border); border-radius: 3px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--yellow); cursor: pointer;
+  }
+
+  .save-row { display: flex; gap: 12px; align-items: center; margin-top: 20px; }
+  .saved-msg { color: var(--green); font-size: 14px; font-weight: 600; display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div class="section-title" style="margin-bottom:24px;">⚙ User <span>Preferences</span></div>
+
+  <form method="POST" action="/preferences">
+  <div class="pref-layout">
+
+    <!-- Category selection -->
+    <div class="card">
+      <div style="font-family:var(--font-h);font-weight:700;font-size:16px;margin-bottom:14px;">
+        📂 Select News Categories
+      </div>
+      <div class="toggle-grid" id="catGrid">
+        {% for cat in categories %}
+        {% set is_checked = cat in prefs.get('categories', []) %}
+        <label class="toggle-item {% if is_checked %}checked{% endif %}" onclick="toggleCheck(this)">
+          <input type="checkbox" name="categories" value="{{ cat }}" {% if is_checked %}checked{% endif %}>
+          <div class="check-icon">{% if is_checked %}✓{% endif %}</div>
+          <span class="toggle-label">{{ cat }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button type="button" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="selectAll(true)">Select All</button>
+        <button type="button" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="selectAll(false)">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Delivery settings -->
+    <div>
+      <div class="card" style="margin-bottom:16px;">
+        <div style="font-family:var(--font-h);font-weight:700;font-size:16px;margin-bottom:14px;">
+          📬 Delivery Channels
+        </div>
+        <div class="delivery-toggle">
+          <div class="delivery-info">
+            📧 Email Digest
+            <small>Daily summary sent to your Gmail</small>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="delivery_email" {% if prefs.get('delivery_email',1) %}checked{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="delivery-toggle">
+          <div class="delivery-info">
+            ✈ Telegram Alerts
+            <small>Instant alerts for high-importance news</small>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="delivery_telegram" {% if prefs.get('delivery_telegram',1) %}checked{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-family:var(--font-h);font-weight:700;font-size:16px;margin-bottom:6px;">
+          ⚡ Alert Threshold
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">
+          Only send Telegram alerts for articles with importance ≥ this score
+        </p>
+        <div class="threshold-row">
+          <div class="threshold-val" id="threshVal">{{ prefs.get('alert_threshold', 7) }}</div>
+          <input type="range" name="alert_threshold" min="1" max="10"
+                 value="{{ prefs.get('alert_threshold', 7) }}"
+                 oninput="document.getElementById('threshVal').textContent=this.value">
+          <span style="color:var(--muted);font-size:13px;">/ 10</span>
+        </div>
+      </div>
+
+      <div class="save-row">
+        <button type="submit" class="btn btn-primary" style="flex:1;">💾 Save Preferences</button>
+        <span class="saved-msg" id="savedMsg">✓ Saved!</span>
+      </div>
+    </div>
+
+  </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleCheck(el) {
+  const cb = el.querySelector('input');
+  const icon = el.querySelector('.check-icon');
+  cb.checked = !cb.checked;
+  el.classList.toggle('checked', cb.checked);
+  icon.textContent = cb.checked ? '✓' : '';
+}
+
+function selectAll(val) {
+  document.querySelectorAll('#catGrid .toggle-item').forEach(el => {
+    const cb = el.querySelector('input');
+    const icon = el.querySelector('.check-icon');
+    cb.checked = val;
+    el.classList.toggle('checked', val);
+    icon.textContent = val ? '✓' : '';
+  });
+}
+</script>
+{% endblock %}
